@@ -9,6 +9,8 @@
 
 #include <fmt/core.h>
 
+
+/// for each user a set of subscribed channels
 std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
 
 int main(int argc, char **argv)
