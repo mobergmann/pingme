@@ -9,7 +9,7 @@
 
 #include <fmt/core.h>
 
-std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletter;
+std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
 
 int main(int argc, char **argv)
 {
@@ -19,20 +19,55 @@ int main(int argc, char **argv)
 
     bot.on_log(dpp::utility::cout_logger());
 
-    // bot.onmessage_send(); // todo
+    bot.on_message_create([&](const dpp::message_create_t &event) {
+        const auto origin_channel_id = event.msg.channel_id;
+        const auto origin_author_id = event.msg.author.id;
+
+        for (const auto& [subscriber_id, channels]: newsletters) {
+            // if sender is the same as the iterator, then skip
+            if (origin_author_id == subscriber_id) {
+                return;
+            }
+
+            // check if user exists
+            const auto& subscriber = dpp::find_user(subscriber_id);
+            if (not subscriber) {
+                // delete user which does not exit
+                newsletters.erase(subscriber_id);
+                return;
+            }
+
+            // if user has a newsletters
+            if (not channels.contains(origin_channel_id)) {
+                return;
+            }
+
+            // try to get channel
+            const auto channel = dpp::find_channel(origin_channel_id);
+            if (not channel) {
+                // delete channel which does not exit
+                newsletters[subscriber_id].erase(origin_channel_id);
+                return;
+            }
+
+            // ping user, that a new message was received
+            dpp::message m(fmt::format("A new message in the channel {} was send. Go check it out.", channel->get_mention()));
+            bot.direct_message_create(subscriber_id, m);
+        }
+    });
 
     bot.on_slashcommand([&bot](const dpp::slashcommand_t &event) {
         if (event.command.get_command_name() == "list") {
-            const auto& channels = newsletter[event.command.usr.id];
+            const auto& channels = newsletters[event.command.usr.id];
             if (channels.empty()) {
                 event.reply("You have no active subscriptions.");
             }
             else {
-                std::string reply = "You subscribed for the newsletter of the following channels: ";
+                std::string reply = "You subscribed for the newsletters of the following channels: ";
                 for (const auto& channel_id: channels) {
                     const auto channel = dpp::find_channel(channel_id);
                     if (not channel) {
-                        newsletter[event.command.usr.id].erase(channel_id);
+                        newsletters[event.command.usr.id].erase(channel_id);
                         reply += "\n- This channel does not exist anymore. It will be removed from the list.";
                     } else {
                         // todo: if channel is category
@@ -45,22 +80,22 @@ int main(int argc, char **argv)
         else if (event.command.get_command_name() == "subscribe") {
             dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
             const auto channel = dpp::find_channel(channel_id);
-            // todo test if bot has access to channel
+            // todo only continue if bot has access to channel
             if (not channel) {
                 event.reply("The channel you provided does not exist.");
             } else {
-                newsletter[event.command.usr.id].insert(channel_id);
-                event.reply(fmt::format("You subscribed for the newsletter for the channel {}", channel->get_mention()));
+                newsletters[event.command.usr.id].insert(channel_id);
+                event.reply(fmt::format("You subscribed for the newsletters for the channel {}", channel->get_mention()));
             }
         }
         else if (event.command.get_command_name() == "unsubscribe") {
             dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
-            newsletter[event.command.usr.id].erase(channel_id);
+            newsletters[event.command.usr.id].erase(channel_id);
             const auto channel = dpp::find_channel(channel_id);
             if (not channel) {
                 event.reply("The channel you provided does not exist.");
             } else {
-                event.reply(fmt::format("You have successfully removed the channel {} from your newsletter.", channel->get_mention()));
+                event.reply(fmt::format("You have successfully removed the channel {} from your newsletters.", channel->get_mention()));
             }
         }
     });
@@ -69,7 +104,7 @@ int main(int argc, char **argv)
         if (dpp::run_once<struct register_bot_commands>()) {
             dpp::slashcommand list("list", "Lists all your subscribed channels.", bot.me.id);
             dpp::slashcommand subscribe("subscribe", "Notifies you when a new message appears in a given channel with a DM.", bot.me.id);
-            dpp::slashcommand unsubscribe("unsubscribe", "Unsubscribes you from a newsletter for a given channel.", bot.me.id);
+            dpp::slashcommand unsubscribe("unsubscribe", "Unsubscribes you from a newsletters for a given channel.", bot.me.id);
 
             subscribe.add_option(
                 dpp::command_option(dpp::co_channel, "channel", "Id of the channel you want to subscribe to.", true)
