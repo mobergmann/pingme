@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 
         for (const auto& [subscriber_id, channels]: newsletters) {
             // if sender is the same as the iterator, then skip
-            if (origin_author_id == subscriber_id) {
+            if (origin_author_id == subscriber_id or origin_author_id == bot.me.id) {
                 return;
             }
 
@@ -54,8 +54,12 @@ int main(int argc, char **argv)
 
             // ping user, that a new message was received
             dpp::message m(fmt::format("A new message in the channel {} was send. Go check it out.", channel->get_mention()));
-            bot.direct_message_create(subscriber_id, m, [](const auto& e){
-                // todo here a dm couldn't be delivered to the user. the user has to enable messages from stringers.
+            bot.direct_message_create(subscriber_id, m, [event](const auto& e){
+                /*if (e.is_error()) {
+                    event.reply("It seems, that I couldn't send you a DM. Please enable the server setting 'Privacy Settings'->'Direct Messages=ON'");
+                    return;
+                }*/
+                // todo: what to do when we cannot ping a user anymore (maybe, because he/she turned of the privacy feature)?
             });
         }
     });
@@ -82,15 +86,24 @@ int main(int argc, char **argv)
             }
         }
         else if (event.command.get_command_name() == "subscribe") {
-            dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
-            const auto channel = dpp::find_channel(channel_id);
-            // todo only continue if bot has access to channel
-            if (not channel) {
-                event.reply("The channel you provided does not exist.");
-            } else {
-                newsletters[event.command.usr.id].insert(channel_id);
-                event.reply(fmt::format("You subscribed for the newsletters for the channel {}", channel->get_mention()));
-            }
+            // test if the bot can send a dm to the user
+            dpp::message m("I will send you the newsletter for the channels you subscribed to per DM.");
+            bot.direct_message_create(event.command.usr.id, m, [event](const auto& e){
+                if (e.is_error()) {
+                    event.reply("It seems, that I couldn't send you a DM. Please enable the server setting 'Privacy Settings'->'Direct Messages=ON'");
+                    return;
+                }
+
+                dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
+                const auto channel = dpp::find_channel(channel_id);
+                // todo only continue if bot has access to channel
+                if (not channel) {
+                    event.reply("The channel you provided does not exist.");
+                } else {
+                    newsletters[event.command.usr.id].insert(channel_id);
+                    event.reply(fmt::format("You subscribed for the newsletters for the channel {}", channel->get_mention()));
+                }
+            });
         }
         else if (event.command.get_command_name() == "unsubscribe") {
             dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
