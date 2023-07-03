@@ -15,7 +15,7 @@ std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
 
 int main(int argc, char **argv)
 {
-    const std::string BOT_TOKEN = "MTEyNDY5NjE3Njc3NjcxNjI5OA.GALPzL.cCTMzRYQA8IHnqs4T67q5NVMTi8IJaW-NmiFHU"; //std::string(std::getenv("BOT_TOKEN"));
+    const std::string BOT_TOKEN = std::string(std::getenv("BOT_TOKEN"));
 
     dpp::cluster bot(BOT_TOKEN, dpp::i_default_intents | dpp::i_message_content);
 
