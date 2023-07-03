@@ -54,7 +54,9 @@ int main(int argc, char **argv)
 
             // ping user, that a new message was received
             dpp::message m(fmt::format("A new message in the channel {} was send. Go check it out.", channel->get_mention()));
-            bot.direct_message_create(subscriber_id, m);
+            bot.direct_message_create(subscriber_id, m, [](const auto& e){
+                // todo here a dm couldn't be delivered to the user. the user has to enable messages from stringers.
+            });
         }
     });
 
