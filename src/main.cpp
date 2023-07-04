@@ -1,6 +1,10 @@
 #include <map>
 #include <set>
 #include <string>
+#include <csignal>
+#include <fstream>
+#include <istream>
+#include <ostream>
 
 #include <dpp/dpp.h>
 #include <dpp/snowflake.h>
@@ -9,12 +13,49 @@
 
 #include <fmt/core.h>
 
+#include <nlohmann/json.hpp>
+
 
 /// for each user a set of subscribed channels
 std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
+/// mutex for locking the newsletters global variable
+std::mutex lock;
+
+const std::string newsletters_file_path = "newsletters.json";
+
+void deserialize() {
+    lock.lock();
+
+    // load file into json
+    std::ifstream i(newsletters_file_path);
+    json j;
+    i >> j;
+
+    // interpret json as newsletters type
+    newsletters = j.get<std::map<dpp::snowflake, std::set<dpp::snowflake>>>();
+
+    lock.unlock();
+}
+
+void serialize(int signal) {
+    lock.lock();
+    
+    // convert newsletter to json
+    json j = newsletters;
+    
+    // write json to file
+    std::ofstream o(newsletters_file_path);
+
+    lock.unlock();
+}
+
 
 int main(int argc, char **argv)
 {
+    // when a system interrupt occurred serialize the newsletters
+    std::signal(SIGINT, &serialize);
+    deserialize();
+
     const std::string BOT_TOKEN = std::string(std::getenv("BOT_TOKEN"));
 
     dpp::cluster bot(BOT_TOKEN, dpp::i_default_intents | dpp::i_message_content);
