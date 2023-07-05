@@ -2,7 +2,9 @@
 #include <set>
 #include <string>
 #include <csignal>
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <filesystem>
 
 #include <dpp/dpp.h>
@@ -12,7 +14,7 @@
 
 #include <fmt/core.h>
 
-#include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
 
 
 /// for each user a set of subscribed channels
@@ -20,7 +22,7 @@ std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
 /// mutex for locking the newsletters global variable
 std::mutex lock;
 
-const std::filesystem::path newsletters_file_path = "newsletters.json";
+const std::filesystem::path newsletters_file_path = "newsletters.yaml";
 
 void deserialize() {
     if (not std::filesystem::exists(newsletters_file_path)) {
@@ -30,31 +32,36 @@ void deserialize() {
 
     lock.lock();
 
-    // load file into json
-    std::ifstream i(newsletters_file_path);
-    json j;
-    i >> j;
+    YAML::Node map = YAML::LoadFile(newsletters_file_path);
+    for (const auto k: map) {
+        const auto key = k.first.as<uint64_t>();
 
-    // interpret json as newsletters type
-    newsletters = j.get<std::map<dpp::snowflake, std::set<dpp::snowflake>>>();
+        std::set<dpp::snowflake> value;
+        for (const auto v: map[key]) {
+            const auto x = v.as<uint64_t>();
+            value.insert(dpp::snowflake(x));
+        }
+
+        newsletters[dpp::snowflake(key)] = value;
+    }
 
     lock.unlock();
 }
 
 void serialize() {
     lock.lock();
-    
-    // convert newsletter to json
-    json j(newsletters);
-    
+
+    YAML::Emitter emitter;
+    emitter << newsletters;
+
     // write json to file
     std::ofstream o(newsletters_file_path);
-    o << std::setw(4) << j << std::endl;
+    o << emitter.c_str() << std::endl;
 
     lock.unlock();
 }
 
-void serialize_signal(int signal = 0) {
+void serialize_signal(int signal) {
     serialize();
 }
 
@@ -181,7 +188,7 @@ void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
 
 int main(int argc, char **argv)
 {
-    /*
+    /* todo
     // when an interrupt signal occurs serialize the newsletters
     std::signal(SIGINT, &serialize_signal);
     // when a terminate signal occurs serialize the newsletters
@@ -191,7 +198,12 @@ int main(int argc, char **argv)
     // initially deserialize the json file to resume the last session
     deserialize();
 
-    const std::string BOT_TOKEN = std::string(std::getenv("BOT_TOKEN"));
+    const char* BOT_TOKEN_ptr = std::getenv("BOT_TOKEN");
+    if (not BOT_TOKEN_ptr) {
+        std::cerr << "Provide a environment variable with the name 'BOT_TOKEN'" << std::endl;
+        std::exit(1);
+    }
+    const std::string BOT_TOKEN = std::string(BOT_TOKEN_ptr);
 
     dpp::cluster bot(BOT_TOKEN, dpp::i_default_intents | dpp::i_message_content);
 
