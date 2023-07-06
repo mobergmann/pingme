@@ -16,12 +16,24 @@ But this is **not encouraged**, as this would allow anyone on every server to DM
 If you don't want others to send you messages you could also add the bot to a "private" server, where only you and the bot are located.
 Then you can enable _Direct Messages_ in the _server privacy settings_ for that server.
 
-# Compile
-## Dependencies
+# Hosting
+## Compiling
+### Dependencies
 - xmake
 
-## Compilation
+### Compilation
 To compile the project make sure you have xmake installed.
 Then clone the repository, `cd` into the repository, and execute `xmake build`.
 Make sure you have a token for your bot.
 Add the Token as the environment variable `BOT_TOKEN`.
+
+## Docker
+You can compile and install the bot in a docker container.
+The image automatically pulls all needed dependencies and compiles the project for you in the container.
+It is as simple as cloning the repository, building the image and then running the image.
+```
+git clone git@github.com:mobergmann/pingme.git
+docker build -t pingme_b .
+docker run -e BOT_TOKEN="<token>" -d --name pingme pingme_b
+```
+Make sure to replace `<token>` with your bot token.
