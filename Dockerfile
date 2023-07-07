@@ -14,7 +14,6 @@ RUN apt-get -y install xmake
 RUN groupadd -r ${USER} && \
 	useradd --create-home --home /home/pingme -r -g ${USER} ${USER}
 
-# set up volume and user
 USER ${USER}
 WORKDIR /home/pingme/src
 
