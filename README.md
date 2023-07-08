@@ -32,7 +32,7 @@ You can compile and install the bot in a docker container.
 The image automatically pulls all needed dependencies and compiles the project for you in the container.
 It is as simple as cloning the repository, building the image and then running the image.
 ```
-git clone git@github.com:mobergmann/pingme.git
+git clone https://github.com/mobergmann/pingme.git
 docker build -t pingme_b .
 docker run -e BOT_TOKEN="<token>" -d --name pingme pingme_b
 ```
