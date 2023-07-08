@@ -1,7 +1,6 @@
 #include <map>
 #include <set>
 #include <string>
-#include <csignal>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -169,13 +168,6 @@ void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
 
 int main(int argc, char **argv)
 {
-    /* todo
-    // when an interrupt signal occurs serialize the newsletters
-    std::signal(SIGINT, &serialize_signal);
-    // when a terminate signal occurs serialize the newsletters
-    std::signal(SIGTERM, &serialize_signal);
-    */
-
     // initially deserialize the json file to resume the last session
     deserialize();
 
