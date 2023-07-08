@@ -32,14 +32,14 @@ You can compile and install the bot in a container.
 The image automatically pulls all needed dependencies and compiles the project for you in the container, no need to install dependencies and compiling.
 It is as simple as cloning the repository, building the image and then running the image.
 
-### When using Podman:
+### Using Podman:
 ```
 git clone https://github.com/mobergmann/pingme.git
 podman build -t pingme_b .
 podman run -e BOT_TOKEN="<token>" -d --name pingme pingme_b
 ```
 
-### When using Docker:
+### Using Docker:
 ```
 git clone https://github.com/mobergmann/pingme.git
 docker build -t pingme_b .
