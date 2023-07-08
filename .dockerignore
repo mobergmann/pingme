@@ -1,0 +1,15 @@
+Dockerfile
+
+**/CMakeFiles
+
+build
+cmake-build-debug
+cmake-build-release
+compile_commands.json
+.cache
+.cmake
+
+.git
+.gitignore
+.gitmodules
+.gitlab-ci.yml
