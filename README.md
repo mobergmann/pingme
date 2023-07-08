@@ -27,13 +27,26 @@ Then clone the repository, `cd` into the repository, and execute `xmake build`.
 Make sure you have a token for your bot.
 Add the Token as the environment variable `BOT_TOKEN`.
 
-## Docker
-You can compile and install the bot in a docker container.
+## Podman/Docker
+You can compile and install the bot in a container, no need to compile the project yourself.
 The image automatically pulls all needed dependencies and compiles the project for you in the container.
 It is as simple as cloning the repository, building the image and then running the image.
+You only need to have installed **podman** or **docker** and if you use docker also the new build tool **docker-buildx**.
+
+### Using Podman:
+```
+git clone https://github.com/mobergmann/pingme.git
+podman build -t pingme_b .
+podman run -e BOT_TOKEN="<token>" -d --name pingme pingme_b
+```
+
+### Using Docker:
 ```
 git clone https://github.com/mobergmann/pingme.git
 docker build -t pingme_b .
 docker run -e BOT_TOKEN="<token>" -d --name pingme pingme_b
 ```
+
+---
+
 Make sure to replace `<token>` with your bot token.
