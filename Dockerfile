@@ -5,7 +5,7 @@ ENV USER=pingme
 # install dependencie
 RUN apt-get -y update
 RUN apt-get -y upgrade
-RUN apt-get -y install build-essential git curl zlib1g unzip software-properties-common
+RUN apt-get -y install build-essential git curl unzip software-properties-common
 RUN add-apt-repository ppa:xmake-io/xmake
 RUN apt-get -y update
 RUN apt-get -y install xmake
