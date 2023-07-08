@@ -20,7 +20,7 @@
 /// for each user a set of subscribed channels
 std::map<dpp::snowflake, std::set<dpp::snowflake>> newsletters;
 /// mutex for locking the newsletters global variable
-std::mutex lock;
+std::mutex mutex;
 
 const std::filesystem::path newsletters_file_path = "newsletters.yaml";
 
@@ -30,7 +30,7 @@ void deserialize() {
         return;
     }
 
-    lock.lock();
+    std::unique_lock lock(mutex);
 
     YAML::Node map = YAML::LoadFile(newsletters_file_path);
     for (const auto k: map) {
@@ -44,12 +44,10 @@ void deserialize() {
 
         newsletters[dpp::snowflake(key)] = value;
     }
-
-    lock.unlock();
 }
 
 void serialize() {
-    lock.lock();
+    std::unique_lock lock(mutex);
 
     YAML::Emitter emitter;
     emitter << newsletters;
@@ -57,8 +55,6 @@ void serialize() {
     // write json to file
     std::ofstream o(newsletters_file_path);
     o << emitter.c_str() << std::endl;
-
-    lock.unlock();
 }
 
 void serialize_signal(int signal) {
@@ -71,6 +67,7 @@ void list(const dpp::slashcommand_t &event) {
         event.reply("You have no active subscriptions.");
     }
     else {
+        std::unique_lock lock(mutex);
         std::string reply = "You subscribed for the newsletters of the following channels: ";
         for (const auto& channel_id: channels) {
             const auto channel = dpp::find_channel(channel_id);
@@ -84,17 +81,13 @@ void list(const dpp::slashcommand_t &event) {
         }
         event.reply(reply);
     }
-    serialize();
 }
 
 void subscribe(dpp::cluster &bot, const dpp::slashcommand_t &event) {
-    lock.lock();
-
     dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
     const auto channel = dpp::find_channel(channel_id);
     // todo only continue if bot has access to channel
     if (not channel) {
-        lock.unlock();
         event.reply("The channel you provided does not exist.");
         return;
     }
@@ -103,47 +96,39 @@ void subscribe(dpp::cluster &bot, const dpp::slashcommand_t &event) {
     dpp::message m(fmt::format("I will send you the newsletter for the channel {} you subscribed to per DM.", channel->get_mention()));
     bot.direct_message_create(event.command.usr.id, m, [event, channel, channel_id](const auto& e){
         if (e.is_error()) {
-            lock.unlock();
             event.reply("It seems, that I couldn't send you a DM. Please enable the server setting 'Privacy Settings'->'Direct Messages=ON'");
             return;
         }
 
+        std::unique_lock lock(mutex);
         newsletters[event.command.usr.id].insert(channel_id);
         event.reply(fmt::format("You subscribed for the newsletters for the channel {}", channel->get_mention()));
-
-        lock.unlock();
     });
 }
 
 void unsubscribe(const dpp::slashcommand_t &event) {
-    lock.lock();
-
     dpp::snowflake channel_id = std::get<dpp::snowflake>(event.get_parameter("channel"));
-
-    newsletters[event.command.usr.id].erase(channel_id);
 
     const auto channel = dpp::find_channel(channel_id);
     if (not channel) {
         event.reply("The channel you provided does not exist.");
     } else {
+        std::unique_lock lock(mutex);
+        newsletters[event.command.usr.id].erase(channel_id);
         event.reply(fmt::format("You have successfully removed the channel {} from your newsletters.", channel->get_mention()));
     }
 
-    lock.unlock();
-
-    serialize();
 }
 
 void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
     const auto origin_channel_id = event.msg.channel_id;
     const auto origin_author_id = event.msg.author.id;
 
-    lock.lock();
+    std::unique_lock lock(mutex);
 
     for (const auto& [subscriber_id, channels]: newsletters) {
         // if sender is the same as the iterator, then skip
         if (origin_author_id == subscriber_id or origin_author_id == bot.me.id) {
-            lock.unlock();
             return;
         }
 
@@ -152,13 +137,11 @@ void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
         if (not subscriber) {
             // delete user which does not exit
             newsletters.erase(subscriber_id);
-            lock.unlock();
             return;
         }
 
         // if user has a newsletters
         if (not channels.contains(origin_channel_id)) {
-            lock.unlock();
             return;
         }
 
@@ -167,7 +150,6 @@ void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
         if (not channel) {
             // delete channel which does not exit
             newsletters[subscriber_id].erase(origin_channel_id);
-            lock.unlock();
             return;
         }
 
@@ -179,7 +161,6 @@ void handle_message(dpp::cluster &bot, const dpp::message_create_t &event) {
                 return;
             }*/
             // todo: what to do when we cannot ping a user anymore (maybe, because he/she turned of the privacy feature)?
-            lock.unlock();
 
             serialize();
         });
@@ -216,12 +197,15 @@ int main(int argc, char **argv)
     bot.on_slashcommand([&bot](const dpp::slashcommand_t &event) {
         if (event.command.get_command_name() == "list") {
             list(event);
+            serialize();
         }
         else if (event.command.get_command_name() == "subscribe") {
             subscribe(bot, event);
+            serialize();
         }
         else if (event.command.get_command_name() == "unsubscribe") {
             unsubscribe(event);
+            serialize();
         }
     });
 
